@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Math Kart League</title>
+  <style>
+    :root {
+      --sky: #bfefff;
+      --mint: #dff8e8;
+      --grass: #8bdc7f;
+      --track: #f8df9c;
+      --track-dark: #d3ac64;
+      --ink: #243047;
+      --muted: #69758a;
+      --blue: #2799dc;
+      --green: #3ebf6a;
+      --yellow: #f7c948;
+      --red: #f05b5b;
+      --purple: #9a7cff;
+      --white: rgba(255,255,255,.94);
+      --shadow: 0 18px 45px rgba(39, 62, 92, .18);
+      --radius: 18px;
+      --font: "Nunito", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; font-family: var(--font); color: var(--ink); background: linear-gradient(#bfefff, #eafbf5); }
+    button, input { font: inherit; }
+    button { border: 0; cursor: pointer; color: inherit; }
+    input { border: 0; outline: none; user-select: text; }
+
+    .app { position: fixed; inset: 0; overflow: hidden; background: radial-gradient(circle at 20% 12%, rgba(255,255,255,.95), transparent 24%), linear-gradient(180deg, #bfefff 0%, #e9fbf4 55%, #d8f4d0 100%); }
+    .screen { position: absolute; inset: 0; display: none; }
+    .screen.active { display: block; }
+
+    .home {
+      overflow: auto;
+      padding: clamp(14px, 3vw, 30px);
+    }
+    .home-shell {
+      width: min(1120px, 100%);
+      min-height: calc(100vh - 60px);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(330px, .9fr) minmax(360px, 1.1fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+    .hero, .setup-card, .panel {
+      background: var(--white);
+      border: 2px solid rgba(255,255,255,.9);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .hero { position: relative; overflow: hidden; padding: 28px; display: grid; align-content: space-between; min-height: 620px; }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 70% 10%, rgba(255,255,255,.78), transparent 18%),
+        linear-gradient(140deg, transparent 0 34%, rgba(39,153,220,.12) 35% 36%, transparent 37%),
+        linear-gradient(25deg, transparent 0 48%, rgba(62,191,106,.12) 49% 50%, transparent 51%);
+      pointer-events: none;
+    }
+    .hero > * { position: relative; z-index: 1; }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 1000; letter-spacing: 0; }
+    .brand-mark { width: 58px; height: 58px; border-radius: 18px; display: grid; place-items: center; background: linear-gradient(135deg, #fff, #dff4ff); box-shadow: inset 0 -5px 0 rgba(39,153,220,.16); }
+    .brand-mark svg { width: 42px; height: 42px; }
+    h1 { margin: 18px 0 10px; font-size: clamp(38px, 7vw, 74px); line-height: .95; letter-spacing: 0; }
+    .subtitle { margin: 0; color: var(--muted); font-size: 18px; line-height: 1.65; font-weight: 800; }
+    .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; }
+    .mode-card { min-height: 116px; border-radius: 16px; padding: 16px; background: #f7fbff; border: 2px solid #e1edf7; display: grid; align-content: center; gap: 8px; text-align: left; }
+    .mode-card.active { border-color: var(--blue); background: linear-gradient(180deg, #eef9ff, #fff); box-shadow: inset 0 -5px 0 rgba(39,153,220,.12); }
+    .mode-card strong { font-size: 19px; }
+    .mode-card span { color: var(--muted); font-size: 14px; line-height: 1.35; font-weight: 800; }
+    .hero-track { height: 260px; border-radius: 22px; overflow: hidden; position: relative; background: #94db7b; border: 4px solid #fff; }
+    .hero-track canvas { width: 100%; height: 100%; display: block; }
+
+    .setup-card { padding: 24px; min-height: 620px; display: grid; gap: 16px; align-content: start; }
+    .top-actions { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+    .pill { min-height: 38px; padding: 8px 13px; border-radius: 999px; background: #f3f7fb; color: var(--muted); font-weight: 900; font-size: 14px; }
+    .firebase-status.ready { color: #187947; background: #e9f9ef; }
+    .firebase-status.local { color: #875c00; background: #fff5db; }
+    .section-title { margin: 0 0 9px; font-size: 16px; font-weight: 1000; text-align: left; }
+    .field { display: grid; gap: 8px; }
+    .name-input, .room-input { width: 100%; height: 54px; padding: 0 14px; border-radius: 14px; background: #f6f9fc; border: 2px solid #e1edf7; font-size: 18px; font-weight: 900; color: var(--ink); }
+    .choice-row { display: flex; flex-wrap: wrap; gap: 9px; }
+    .chip { min-height: 44px; padding: 0 15px; border-radius: 14px; background: #f4f8fb; border: 2px solid #e0ebf4; font-weight: 1000; color: #4a5568; }
+    .chip.active { background: var(--blue); border-color: var(--blue); color: #fff; box-shadow: inset 0 -4px 0 rgba(0,0,0,.12); }
+    .character-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .character { min-height: 94px; padding: 8px; border-radius: 16px; border: 2px solid #e0ebf4; background: #f7fbff; display: grid; place-items: center; gap: 6px; font-weight: 1000; }
+    .character.active { border-color: var(--blue); background: #eef9ff; }
+    .avatar { width: 46px; height: 46px; border-radius: 16px; display: grid; place-items: center; font-size: 26px; background: #fff; box-shadow: inset 0 -4px 0 rgba(0,0,0,.08); }
+    .room-line { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+    .primary, .secondary { min-height: 56px; border-radius: 16px; padding: 0 18px; font-size: 18px; font-weight: 1000; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .primary { background: linear-gradient(180deg, #42c977, #2fb866); color: #fff; box-shadow: 0 6px 0 #20914a; }
+    .primary:active { transform: translateY(4px); box-shadow: 0 2px 0 #20914a; }
+    .secondary { background: #eef4f8; color: var(--ink); }
+    .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .room-panel { display: none; padding: 14px; background: #f7fbff; border-radius: 16px; border: 2px solid #e1edf7; }
+    .room-panel.active { display: grid; gap: 10px; }
+    .room-code { font-size: 30px; font-weight: 1000; color: var(--blue); letter-spacing: 4px; }
+    .room-members { display: grid; gap: 6px; }
+    .member { padding: 8px 10px; border-radius: 12px; background: #fff; display: flex; align-items: center; justify-content: space-between; font-weight: 900; }
+    .hint { color: var(--muted); font-size: 13px; line-height: 1.45; font-weight: 800; }
+
+    .game { background: #95dc82; }
+    #gameCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .hud { position: absolute; inset: 12px 12px auto 12px; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; pointer-events: none; }
+    .hud-stack { display: grid; gap: 8px; }
+    .hud-box { min-width: 96px; min-height: 52px; padding: 8px 14px; border-radius: 16px; background: rgba(255,255,255,.94); border: 2px solid #fff; box-shadow: 0 8px 22px rgba(0,0,0,.13); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 24px; font-weight: 1000; color: var(--red); }
+    .race-banner { justify-self: center; min-height: 46px; padding: 9px 18px; border-radius: 999px; background: rgba(255,255,255,.9); border: 2px solid #fff; box-shadow: 0 8px 22px rgba(0,0,0,.12); font-weight: 1000; color: var(--ink); text-align: center; }
+    .mini { width: 132px; height: 132px; border-radius: 16px; overflow: hidden; background: rgba(0,0,0,.35); border: 3px solid #fff; box-shadow: 0 8px 22px rgba(0,0,0,.18); }
+    #miniCanvas { width: 100%; height: 100%; display: block; }
+    .controls { position: absolute; left: 18px; right: 18px; bottom: 18px; display: flex; justify-content: space-between; pointer-events: none; }
+    .ctrl { width: 92px; height: 92px; border-radius: 50%; background: rgba(255,255,255,.82); border: 4px solid #fff; box-shadow: 0 8px 20px rgba(0,0,0,.2); display: grid; place-items: center; pointer-events: auto; }
+    .ctrl svg { width: 44px; height: 44px; fill: var(--blue); }
+    .countdown { position: absolute; inset: 0; display: none; place-items: center; color: #fff; text-shadow: 0 5px 0 rgba(36,48,71,.55); font-size: clamp(72px, 18vw, 190px); font-weight: 1000; pointer-events: none; }
+    .countdown.active { display: grid; }
+
+    .question-modal, .result-modal, .leader-modal {
+      position: absolute; inset: 0; z-index: 50; display: none; place-items: center; padding: 18px; background: rgba(191,239,255,.72); backdrop-filter: blur(7px);
+    }
+    .question-modal.active, .result-modal.active, .leader-modal.active { display: grid; }
+    .question-card, .result-card { width: min(560px, 100%); max-height: 94vh; overflow: auto; padding: 22px; border-radius: 22px; background: #fff; border: 4px solid var(--blue); box-shadow: var(--shadow); text-align: center; }
+    .problem { padding: 18px; border: 4px dashed #ff9d37; border-radius: 18px; background: #fff7e6; font-size: clamp(34px, 6vw, 52px); font-weight: 1000; line-height: 1.55; }
+    .answer-row { margin: 14px 0; display: flex; justify-content: center; align-items: center; gap: 10px; }
+    .answer { width: 190px; height: 62px; border-radius: 16px; border: 3px solid var(--ink); background: #fff; color: var(--blue); text-align: center; font-size: 36px; font-weight: 1000; }
+    .keypad { width: min(330px, 100%); margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .key { height: 54px; border-radius: 14px; background: #f1f3f6; box-shadow: inset 0 -4px 0 rgba(0,0,0,.12); font-size: 24px; font-weight: 1000; }
+    .key.clear { color: var(--red); background: #ffe7e7; }
+    .feedback { min-height: 26px; font-weight: 1000; color: var(--red); }
+    .leader-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    .leader-table th, .leader-table td { padding: 9px; border-bottom: 2px solid #edf2f7; font-weight: 900; text-align: center; }
+    .leader-table td:nth-child(2), .leader-table th:nth-child(2) { text-align: left; }
+    .toast { position: absolute; left: 50%; bottom: 128px; transform: translateX(-50%); min-width: 180px; padding: 12px 18px; border-radius: 999px; background: rgba(36,48,71,.86); color: #fff; font-weight: 1000; text-align: center; opacity: 0; transition: opacity .18s, transform .18s; pointer-events: none; }
+    .toast.show { opacity: 1; transform: translate(-50%, -8px); }
+
+    @media (max-width: 860px) {
+      .home-shell { grid-template-columns: 1fr; }
+      .hero { min-height: auto; }
+      .hero-track { height: 190px; }
+      .setup-card { min-height: auto; }
+      .mode-grid, .button-row { grid-template-columns: 1fr; }
+      .character-grid { grid-template-columns: repeat(2, 1fr); }
+      .hud { grid-template-columns: auto 1fr auto; }
+      .mini { width: 112px; height: 112px; }
+      .ctrl { width: 84px; height: 84px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="screen home active" id="homeScreen">
+      <div class="home-shell">
+        <div class="hero">
+          <div>
+            <div class="brand">
+              <div class="brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 64 64"><path fill="#2799dc" d="M12 39h38l4 7v7H11v-7z"/><path fill="#243047" d="M14 51a7 7 0 1 0 14 0 7 7 0 0 0-14 0m25 0a7 7 0 1 0 14 0 7 7 0 0 0-14 0"/><path fill="#fff" d="M21 31h20l7 8H14z"/><path fill="#f7c948" d="M43 20l8 5-8 5z"/></svg>
+              </div>
+              <span>Math Kart League</span>
+            </div>
+            <h1>數學卡丁車<br>線上競速</h1>
+            <p class="subtitle">單人練習或最多 4 人房間。每位學生用自己的 iPad 操作，畫面只顯示自己的賽車視角與對手車位置。</p>
+            <div class="mode-grid">
+              <button class="mode-card active" data-mode="solo"><strong>單人練習</strong><span>計時答題、收集金幣、上排行榜。</span></button>
+              <button class="mode-card" data-mode="create"><strong>建立房間</strong><span>老師或學生建立代碼，最多 4 人加入。</span></button>
+              <button class="mode-card" data-mode="join"><strong>加入房間</strong><span>輸入房間代碼後一起開跑。</span></button>
+              <button class="mode-card" data-mode="leaderboard"><strong>排行榜</strong><span>查看本機或 Firebase 雲端成績。</span></button>
+            </div>
+          </div>
+          <div class="hero-track"><canvas id="heroCanvas"></canvas></div>
+        </div>
+
+        <div class="setup-card">
+          <div class="top-actions">
+            <span class="pill firebase-status local" id="firebaseStatus">本機排行榜</span>
+            <button class="secondary" id="openLeaderboard">排行榜</button>
+          </div>
+          <div class="field">
+            <div class="section-title">車手名稱</div>
+            <input class="name-input" id="playerName" maxlength="14" placeholder="輸入學生姓名">
+          </div>
+          <div class="field">
+            <div class="section-title">角色設定</div>
+            <div class="character-grid" id="characterGrid">
+              <button class="character active" data-character="momo" data-color="#2799dc"><span class="avatar">も</span><span>藍莓</span></button>
+              <button class="character" data-character="hana" data-color="#f05b5b"><span class="avatar">花</span><span>小花</span></button>
+              <button class="character" data-character="sora" data-color="#3ebf6a"><span class="avatar">空</span><span>綠空</span></button>
+              <button class="character" data-character="kira" data-color="#f7c948"><span class="avatar">星</span><span>星星</span></button>
+            </div>
+          </div>
+          <div class="field">
+            <div class="section-title">練習運算</div>
+            <div class="choice-row" id="opChoices">
+              <button class="chip active" data-op="+">加法</button>
+              <button class="chip active" data-op="-">減法</button>
+              <button class="chip" data-op="*">乘法</button>
+              <button class="chip" data-op="/">除法</button>
+              <button class="chip" data-op="inverse">乘除互逆</button>
+            </div>
+          </div>
+          <div class="field">
+            <div class="section-title">難度</div>
+            <div class="choice-row" id="difficultyChoices">
+              <button class="chip active" data-diff="easy">初級</button>
+              <button class="chip" data-diff="medium">中級</button>
+              <button class="chip" data-diff="hard">高級</button>
+            </div>
+          </div>
+          <div class="field">
+            <div class="section-title">比賽時間</div>
+            <div class="choice-row" id="timeChoices">
+              <button class="chip active" data-time="60">60 秒</button>
+              <button class="chip" data-time="120">120 秒</button>
+              <button class="chip" data-time="180">180 秒</button>
+            </div>
+          </div>
+          <div class="room-panel" id="roomPanel">
+            <div class="hint">房間代碼</div>
+            <div class="room-code" id="roomCode">----</div>
+            <div class="room-line">
+              <input class="room-input" id="joinCode" maxlength="6" placeholder="輸入房間代碼">
+              <button class="secondary" id="joinRoom">加入</button>
+            </div>
+            <div class="room-members" id="roomMembers"></div>
+            <div class="hint" id="roomHint">Firebase 未設定時，房間會以本機模擬模式運作。</div>
+          </div>
+          <div class="button-row">
+            <button class="secondary" id="createRoom">建立房間</button>
+            <button class="primary" id="startGame">開始比賽</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen game" id="gameScreen">
+      <canvas id="gameCanvas"></canvas>
+      <div class="hud">
+        <div class="hud-stack">
+          <div class="hud-box"><span>⏳</span><span id="timeHud">60</span></div>
+          <div class="hud-box"><span>🪙</span><span id="scoreHud">0</span></div>
+        </div>
+        <div class="race-banner" id="raceBanner">準備起跑</div>
+        <div class="mini"><canvas id="miniCanvas" width="132" height="132"></canvas></div>
+      </div>
+      <div class="controls">
+        <button class="ctrl" id="leftBtn" aria-label="左轉"><svg viewBox="0 0 64 64"><path d="M43 9 15 32l28 23z"/></svg></button>
+        <button class="ctrl" id="rightBtn" aria-label="右轉"><svg viewBox="0 0 64 64"><path d="m21 9 28 23-28 23z"/></svg></button>
+      </div>
+      <div class="countdown" id="countdown">3</div>
+      <div class="toast" id="toast"></div>
+
+      <div class="question-modal" id="questionModal">
+        <div class="question-card">
+          <div class="hint">支援鍵盤數字、Backspace 清除、Enter 送出</div>
+          <div class="problem" id="problemText">? + ? = ?</div>
+          <div class="answer-row">
+            <input class="answer" id="answerInput" inputmode="numeric" pattern="[0-9]*" placeholder="?">
+            <button class="primary" id="submitAnswer">送出</button>
+          </div>
+          <div class="feedback" id="feedback"></div>
+          <div class="keypad" id="keypad"></div>
+        </div>
+      </div>
+
+      <div class="result-modal" id="resultModal">
+        <div class="result-card">
+          <h2>比賽完成</h2>
+          <p class="subtitle" id="resultSummary"></p>
+          <table class="leader-table">
+            <thead><tr><th>名次</th><th>車手</th><th>答對</th><th>分數</th></tr></thead>
+            <tbody id="resultRows"></tbody>
+          </table>
+          <div class="button-row">
+            <button class="secondary" id="backHome">回首頁</button>
+            <button class="primary" id="again">再玩一次</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="leader-modal" id="leaderModal">
+      <div class="result-card">
+        <h2>排行榜</h2>
+        <table class="leader-table">
+          <thead><tr><th>名次</th><th>車手</th><th>模式</th><th>分數</th></tr></thead>
+          <tbody id="leaderRows"></tbody>
+        </table>
+        <button class="primary" id="closeLeader">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const FIREBASE_CONFIG = window.MATH_KART_FIREBASE_CONFIG || {
+      apiKey: "",
+      authDomain: "",
+      projectId: "",
+      storageBucket: "",
+      messagingSenderId: "",
+      appId: ""
+    };
+    const FIREBASE_COLLECTION = "mathKartLeaderboard";
+    const ROOM_COLLECTION = "mathKartRooms";
+    const STORAGE_KEY = "mathKartLeagueScores";
+    const $ = (selector) => document.querySelector(selector);
+    const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+    const els = {
+      homeScreen: $("#homeScreen"), gameScreen: $("#gameScreen"),
+      heroCanvas: $("#heroCanvas"), gameCanvas: $("#gameCanvas"), miniCanvas: $("#miniCanvas"),
+      playerName: $("#playerName"), firebaseStatus: $("#firebaseStatus"),
+      roomPanel: $("#roomPanel"), roomCode: $("#roomCode"), joinCode: $("#joinCode"), roomMembers: $("#roomMembers"), roomHint: $("#roomHint"),
+      createRoom: $("#createRoom"), joinRoom: $("#joinRoom"), startGame: $("#startGame"),
+      openLeaderboard: $("#openLeaderboard"), leaderModal: $("#leaderModal"), leaderRows: $("#leaderRows"), closeLeader: $("#closeLeader"),
+      timeHud: $("#timeHud"), scoreHud: $("#scoreHud"), raceBanner: $("#raceBanner"), countdown: $("#countdown"), toast: $("#toast"),
+      questionModal: $("#questionModal"), problemText: $("#problemText"), answerInput: $("#answerInput"), submitAnswer: $("#submitAnswer"), feedback: $("#feedback"), keypad: $("#keypad"),
+      resultModal: $("#resultModal"), resultSummary: $("#resultSummary"), resultRows: $("#resultRows"), backHome: $("#backHome"), again: $("#again"),
+      leftBtn: $("#leftBtn"), rightBtn: $("#rightBtn")
+    };
+
+    const RANGES = { easy: { min: 2, max: 12 }, medium: { min: 10, max: 50 }, hard: { min: 30, max: 100 } };
+    const INVERSE_RANGES = { easy: { aMin: 2, aMax: 9, bMin: 2, bMax: 5 }, medium: { aMin: 5, aMax: 15, bMin: 3, bMax: 9 }, hard: { aMin: 12, aMax: 30, bMin: 5, bMax: 15 } };
+    const TRACK = [
+      [0.50, 0.96], [0.26, 0.88], [0.16, 0.72], [0.32, 0.57], [0.18, 0.40], [0.34, 0.20],
+      [0.58, 0.22], [0.74, 0.13], [0.87, 0.28], [0.70, 0.43], [0.84, 0.58], [0.72, 0.78],
+      [0.50, 0.70], [0.34, 0.78], [0.50, 0.96]
+    ];
+    const COLORS = ["#2799dc", "#f05b5b", "#3ebf6a", "#f7c948"];
+
+    const state = {
+      mode: "solo", playerId: makeId(), roomId: "", roomHost: false, firebaseReady: false, fb: null, unsubscribeRoom: null,
+      name: "快樂車手", character: "momo", color: "#2799dc", ops: ["+", "-"], diff: "easy", totalTime: 60,
+      running: false, paused: false, finished: false, steer: 0, progress: 0, speed: 0, boost: 0, timeLeft: 60, score: 0, correct: 0, attempted: 0,
+      currentAnswer: null, rivals: [], remotePlayers: {}, objects: [], lastTime: 0, publishAt: 0, answerOpenAt: 0
+    };
+
+    function makeId() { return Math.random().toString(36).slice(2, 10); }
+    function roomCode() { return Math.random().toString(36).slice(2, 6).toUpperCase(); }
+    function escapeHTML(str) { return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+    function isFirebaseConfigured() { return Boolean(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId && FIREBASE_CONFIG.appId); }
+
+    async function getFirebase() {
+      if (!isFirebaseConfigured()) return null;
+      if (state.fb) return state.fb;
+      const [app, fs] = await Promise.all([
+        import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
+        import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js")
+      ]);
+      const firebaseApp = app.initializeApp(FIREBASE_CONFIG);
+      const db = fs.getFirestore(firebaseApp);
+      state.fb = { db, ...fs };
+      state.firebaseReady = true;
+      els.firebaseStatus.textContent = "Firebase 已連線";
+      els.firebaseStatus.className = "pill firebase-status ready";
+      return state.fb;
+    }
+
+    function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function generateProblem() {
+      const op = state.ops[Math.floor(Math.random() * state.ops.length)];
+      const range = RANGES[state.diff];
+      let a = randomInt(range.min, range.max);
+      let b = randomInt(range.min, range.max);
+      let pattern = 0;
+      if (state.diff === "medium") pattern = Math.floor(Math.random() * 2) + 1;
+      if (state.diff === "hard") pattern = Math.floor(Math.random() * 3);
+      if (op === "inverse") {
+        const r = INVERSE_RANGES[state.diff], x = randomInt(r.aMin, r.aMax), y = randomInt(r.bMin, r.bMax), z = x * y;
+        return [{ text: `${x} × ${y} = ${z}<br>${z} ÷ ${y} = ( ? )`, answer: x }, { text: `${z} ÷ ${y} = ${x}<br>${x} × ${y} = ( ? )`, answer: z }, { text: `${x} × ${y} = ${z}<br>( ? ) ÷ ${x} = ${y}`, answer: z }][randomInt(0, 2)];
+      }
+      if (op === "/") {
+        const d = randomInt(2, state.diff === "hard" ? 15 : 9), q = randomInt(2, state.diff === "hard" ? 15 : 9), n = d * q;
+        if (pattern === 0) return { text: `${n} ÷ ${d} = ( ? )`, answer: q };
+        if (pattern === 1) return { text: `( ? ) ÷ ${d} = ${q}`, answer: n };
+        return { text: `${n} ÷ ( ? ) = ${q}`, answer: d };
+      }
+      if (op === "*") {
+        const max = state.diff === "hard" ? 15 : state.diff === "medium" ? 12 : 9;
+        a = randomInt(2, max); b = randomInt(2, max); const c = a * b;
+        if (pattern === 0) return { text: `${a} × ${b} = ( ? )`, answer: c };
+        if (pattern === 1) return { text: `( ? ) × ${b} = ${c}`, answer: a };
+        return { text: `${a} × ( ? ) = ${c}`, answer: b };
+      }
+      if (op === "-") {
+        if (a < b) [a, b] = [b, a]; const c = a - b;
+        if (pattern === 0) return { text: `${a} - ${b} = ( ? )`, answer: c };
+        if (pattern === 1) return { text: `( ? ) - ${b} = ${c}`, answer: a };
+        return { text: `${a} - ( ? ) = ${c}`, answer: b };
+      }
+      const c = a + b;
+      if (pattern === 0) return { text: `${a} + ${b} = ( ? )`, answer: c };
+      if (pattern === 1) return { text: `( ? ) + ${b} = ${c}`, answer: a };
+      return { text: `${a} + ( ? ) = ${c}`, answer: b };
+    }
+
+    function bindHome() {
+      $$(".mode-card").forEach((btn) => btn.addEventListener("click", () => setMode(btn.dataset.mode)));
+      $$("#opChoices .chip").forEach((btn) => btn.addEventListener("click", () => {
+        const active = $$("#opChoices .chip.active");
+        if (btn.classList.contains("active") && active.length === 1) return;
+        btn.classList.toggle("active");
+        state.ops = $$("#opChoices .chip.active").map((b) => b.dataset.op);
+      }));
+      $$("#difficultyChoices .chip").forEach((btn) => btn.addEventListener("click", () => selectSingle("#difficultyChoices .chip", btn, () => state.diff = btn.dataset.diff)));
+      $$("#timeChoices .chip").forEach((btn) => btn.addEventListener("click", () => selectSingle("#timeChoices .chip", btn, () => state.totalTime = Number(btn.dataset.time))));
+      $$(".character").forEach((btn) => btn.addEventListener("click", () => selectSingle(".character", btn, () => { state.character = btn.dataset.character; state.color = btn.dataset.color; })));
+      els.createRoom.addEventListener("click", createRoom);
+      els.joinRoom.addEventListener("click", joinRoom);
+      els.startGame.addEventListener("click", startFromHome);
+      els.openLeaderboard.addEventListener("click", showLeaderboard);
+      els.closeLeader.addEventListener("click", () => els.leaderModal.classList.remove("active"));
+    }
+    function selectSingle(selector, selected, cb) { $$(selector).forEach((b) => b.classList.remove("active")); selected.classList.add("active"); cb(); }
+    function setMode(mode) {
+      state.mode = mode;
+      $$(".mode-card").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
+      els.roomPanel.classList.toggle("active", mode === "create" || mode === "join");
+      if (mode === "leaderboard") showLeaderboard();
+    }
+
+    async function createRoom() {
+      applySettings();
+      state.roomId = roomCode();
+      state.roomHost = true;
+      state.mode = "create";
+      els.roomCode.textContent = state.roomId;
+      els.roomPanel.classList.add("active");
+      await syncRoom(true);
+      renderRoomMembers();
+    }
+    async function joinRoom() {
+      applySettings();
+      state.roomId = els.joinCode.value.trim().toUpperCase();
+      if (!state.roomId) return toast("請輸入房間代碼");
+      state.mode = "join";
+      els.roomCode.textContent = state.roomId;
+      await syncRoom(true);
+      renderRoomMembers();
+    }
+    async function syncRoom(joining = false) {
+      const fb = await getFirebase().catch(() => null);
+      const player = playerRecord();
+      if (!fb) {
+        state.remotePlayers = { [state.playerId]: player };
+        els.roomHint.textContent = "本機模擬房間：填入 Firebase 設定後可跨 iPad 同步。";
+        return;
+      }
+      const { db, doc, setDoc, onSnapshot } = fb;
+      const roomRef = doc(db, ROOM_COLLECTION, state.roomId);
+      await setDoc(roomRef, { updatedAt: Date.now(), host: state.roomHost ? state.playerId : undefined, players: { [state.playerId]: player }, settings: roomSettings() }, { merge: true });
+      if (state.unsubscribeRoom) state.unsubscribeRoom();
+      state.unsubscribeRoom = onSnapshot(roomRef, (snap) => {
+        const data = snap.data() || {};
+        state.remotePlayers = data.players || {};
+        renderRoomMembers();
+      });
+      if (joining) toast("已進入房間");
+    }
+    async function publishPlayer() {
+      if (!(state.mode === "create" || state.mode === "join") || !state.roomId) return;
+      const fb = await getFirebase().catch(() => null);
+      if (!fb) {
+        state.remotePlayers[state.playerId] = playerRecord();
+        return;
+      }
+      const { db, doc, setDoc } = fb;
+      await setDoc(doc(db, ROOM_COLLECTION, state.roomId), { updatedAt: Date.now(), players: { [state.playerId]: playerRecord() } }, { merge: true });
+    }
+    function playerRecord() { return { id: state.playerId, name: state.name, color: state.color, character: state.character, progress: state.progress, score: state.score, correct: state.correct, finished: state.finished, updatedAt: Date.now() }; }
+    function roomSettings() { return { ops: state.ops, diff: state.diff, totalTime: state.totalTime }; }
+    function renderRoomMembers() {
+      const players = Object.values(state.remotePlayers);
+      els.roomMembers.innerHTML = "";
+      (players.length ? players : [playerRecord()]).slice(0, 4).forEach((p) => {
+        els.roomMembers.innerHTML += `<div class="member"><span>${escapeHTML(p.name || "車手")}</span><span style="color:${p.color || "#2799dc"}">●</span></div>`;
+      });
+    }
+
+    function applySettings() {
+      state.name = els.playerName.value.trim() || "快樂車手";
+      state.ops = $$("#opChoices .chip.active").map((b) => b.dataset.op);
+      state.diff = $("#difficultyChoices .chip.active").dataset.diff;
+      state.totalTime = Number($("#timeChoices .chip.active").dataset.time);
+      const c = $(".character.active");
+      state.character = c.dataset.character;
+      state.color = c.dataset.color;
+    }
+
+    function startFromHome() {
+      applySettings();
+      if (state.mode === "create" && !state.roomId) createRoom();
+      startRace();
+    }
+
+    function startRace() {
+      Object.assign(state, { running: false, paused: false, finished: false, steer: 0, progress: 0, speed: 0, boost: 0, timeLeft: state.totalTime, score: 0, correct: 0, attempted: 0, objects: [], rivals: [] });
+      state.rivals = COLORS.filter((c) => c !== state.color).slice(0, 3).map((color, i) => ({ id: `bot${i}`, name: ["小花", "綠空", "星星"][i], color, progress: .028 + i * .026, lane: i - 1, speed: .010 + i * .0015, wobble: Math.random() * 10, score: 0, correct: 0 }));
+      buildObjects();
+      els.homeScreen.classList.remove("active");
+      els.resultModal.classList.remove("active");
+      els.gameScreen.classList.add("active");
+      fitCanvas();
+      countdown(3);
+    }
+    function countdown(n) {
+      els.countdown.classList.add("active");
+      els.countdown.textContent = n;
+      if (n === 0) {
+        els.countdown.textContent = "GO";
+        setTimeout(() => { els.countdown.classList.remove("active"); state.running = true; state.lastTime = performance.now(); requestAnimationFrame(loop); }, 600);
+      } else setTimeout(() => countdown(n - 1), 850);
+    }
+    function buildObjects() {
+      for (let i = 0; i < 64; i += 1) {
+        const type = i % 9 === 0 ? "question" : i % 9 === 3 ? "clock" : i % 9 === 6 ? "boost" : "coin";
+        state.objects.push({ type, progress: .08 + i * .031, lane: [-1, 0, 1, -.55, .55][i % 5], active: true });
+      }
+    }
+
+    function fitCanvas() {
+      [els.gameCanvas, els.heroCanvas].forEach((canvas) => {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = Math.max(1, Math.floor(rect.width * devicePixelRatio));
+        canvas.height = Math.max(1, Math.floor(rect.height * devicePixelRatio));
+      });
+    }
+    window.addEventListener("resize", fitCanvas);
+
+    function pointAt(progress) {
+      const p = ((progress % 1) + 1) % 1;
+      const seg = p * (TRACK.length - 1);
+      const i = Math.min(TRACK.length - 2, Math.floor(seg));
+      const t = seg - i;
+      const a = TRACK[i], b = TRACK[i + 1];
+      return { x: a[0] + (b[0] - a[0]) * t, y: a[1] + (b[1] - a[1]) * t };
+    }
+    function trackTangent(progress) {
+      const a = pointAt(progress - .002), b = pointAt(progress + .002);
+      return Math.atan2(b.y - a.y, b.x - a.x);
+    }
+
+    function loop(now) {
+      if (!state.running || state.finished) return;
+      const dt = Math.min(.033, (now - state.lastTime) / 1000 || .016);
+      state.lastTime = now;
+      if (!state.paused) updateRace(dt);
+      drawGame();
+      requestAnimationFrame(loop);
+    }
+    function updateRace(dt) {
+      state.timeLeft = Math.max(0, state.timeLeft - dt);
+      if (state.timeLeft <= 0) return finishRace();
+      const target = (state.boost > 0 ? .052 : .026) * (1 + Math.sin(performance.now() * .001) * .025);
+      state.speed += (target - state.speed) * .08;
+      state.progress += state.speed * dt;
+      state.boost = Math.max(0, state.boost - dt);
+      state.rivals.forEach((r, i) => {
+        r.progress += (r.speed + Math.sin(performance.now() * .001 + r.wobble) * .002) * dt;
+        if (r.progress < state.progress - .05) r.progress = state.progress + .035 + i * .024;
+        if (r.progress > state.progress + .15) r.speed = .008;
+        else r.speed = .014 + i * .001;
+      });
+      state.objects.forEach((obj) => {
+        if (!obj.active) return;
+        const d = obj.progress - state.progress;
+        if (d < -0.02) obj.active = false;
+        if (d > 0 && d < .006) {
+          const carLane = Math.max(-1, Math.min(1, state.steer * .9));
+          if (obj.type === "question" || Math.abs(obj.lane - carLane) < .46) collectObject(obj);
+        }
+      });
+      els.timeHud.textContent = Math.ceil(state.timeLeft);
+      els.scoreHud.textContent = state.score;
+      els.raceBanner.textContent = state.mode === "solo" ? "單人練習" : `房間 ${state.roomId || "----"}`;
+      if (performance.now() > state.publishAt) { state.publishAt = performance.now() + 1200; publishPlayer(); }
+    }
+    function collectObject(obj) {
+      obj.active = false;
+      if (obj.type === "coin") { state.score += 5; toast("金幣 +5"); }
+      if (obj.type === "clock") { state.timeLeft += 5; toast("時間 +5 秒"); }
+      if (obj.type === "boost") { state.boost = 3.2; toast("加速衝刺"); }
+      if (obj.type === "question") openQuestion();
+    }
+    function openQuestion() {
+      state.paused = true;
+      const q = generateProblem();
+      state.currentAnswer = q.answer;
+      els.problemText.innerHTML = q.text;
+      els.answerInput.value = "";
+      els.feedback.textContent = "";
+      els.questionModal.classList.add("active");
+      setTimeout(() => els.answerInput.focus(), 0);
+    }
+    function submitAnswer() {
+      const val = parseInt(els.answerInput.value, 10);
+      if (Number.isNaN(val)) return;
+      state.attempted += 1;
+      if (val === state.currentAnswer) {
+        state.correct += 1; state.score += 12; state.boost = 2.6;
+        els.feedback.style.color = "var(--green)";
+        els.feedback.textContent = "答對，衝刺";
+        setTimeout(() => { els.questionModal.classList.remove("active"); state.paused = false; toast("答對 +12"); }, 450);
+      } else {
+        els.feedback.style.color = "var(--red)";
+        els.feedback.textContent = "再算一次";
+        els.answerInput.value = "";
+      }
+    }
+    function finishRace() {
+      state.finished = true; state.running = false; state.paused = false;
+      els.questionModal.classList.remove("active");
+      const board = raceResults();
+      saveScore(board[0]);
+      publishPlayer();
+      els.resultSummary.textContent = `${state.name} 答對 ${state.correct} 題，獲得 ${state.score} 分`;
+      els.resultRows.innerHTML = board.map((p, i) => `<tr><td>${i + 1}</td><td>${escapeHTML(p.name)}</td><td>${p.correct}</td><td>${p.score}</td></tr>`).join("");
+      els.resultModal.classList.add("active");
+    }
+    function raceResults() {
+      const all = [{ name: state.name, score: state.score, correct: state.correct, progress: state.progress, mode: state.mode }, ...state.rivals.map((r) => ({ name: r.name, score: Math.floor(35 + r.progress * 90), correct: Math.floor(2 + r.progress * 20), progress: r.progress }))];
+      Object.values(state.remotePlayers).forEach((p) => { if (p.id !== state.playerId) all.push({ name: p.name || "同學", score: p.score || 0, correct: p.correct || 0, progress: p.progress || 0 }); });
+      return all.sort((a, b) => b.score - a.score || b.progress - a.progress).slice(0, 4);
+    }
+
+    function drawGame() {
+      const canvas = els.gameCanvas, ctx = canvas.getContext("2d"), w = canvas.width, h = canvas.height, dpr = devicePixelRatio;
+      ctx.clearRect(0, 0, w, h);
+      ctx.save(); ctx.scale(dpr, dpr);
+      const W = w / dpr, H = h / dpr;
+      drawWorld(ctx, W, H, state.progress);
+      drawObjects(ctx, W, H);
+      drawRivals(ctx, W, H);
+      drawKart(ctx, W / 2 + state.steer * 42, H - 118, 1.18, state.color, state.steer * .18, state.character);
+      ctx.restore();
+      drawMini();
+    }
+    function drawWorld(ctx, W, H, progress) {
+      ctx.fillStyle = "#bfefff"; ctx.fillRect(0, 0, W, H * .46);
+      ctx.fillStyle = "#8bdc7f"; ctx.fillRect(0, H * .46, W, H);
+      for (let i = 0; i < 26; i += 1) {
+        const z = i / 25, y = H * (.47 + z * .57), width = W * (.26 + z * .88), cx = W / 2 + Math.sin((progress * 12 + i) * .55) * W * .12 * (1 - z);
+        ctx.fillStyle = i % 2 ? "#f5da92" : "#fae5a9";
+        ctx.beginPath();
+        ctx.moveTo(cx - width * .52, y);
+        ctx.lineTo(cx + width * .52, y);
+        ctx.lineTo(cx + width * .42, y + H * .035);
+        ctx.lineTo(cx - width * .42, y + H * .035);
+        ctx.closePath(); ctx.fill();
+        if (i % 2 === 0) {
+          ctx.fillStyle = "#fff";
+          ctx.fillRect(cx - 5, y + 5, 10, H * .025);
+        }
+        drawCurb(ctx, cx - width * .52, y, z);
+        drawCurb(ctx, cx + width * .52, y, z);
+      }
+      for (let i = 0; i < 9; i += 1) drawTree(ctx, (i % 2 ? W * .82 : W * .16) + Math.sin(i) * 26, H * (.44 + i * .055), .7 + i * .05);
+    }
+    function drawCurb(ctx, x, y, z) {
+      ctx.fillStyle = Math.floor(z * 20) % 2 ? "#fff" : "#ef4444";
+      ctx.fillRect(x - 18, y, 36, 14 + z * 14);
+    }
+    function drawTree(ctx, x, y, s) {
+      ctx.fillStyle = "#9b5b28"; ctx.fillRect(x - 5 * s, y + 18 * s, 10 * s, 18 * s);
+      ctx.fillStyle = "#33aa4a"; ctx.beginPath(); ctx.moveTo(x, y - 28 * s); ctx.lineTo(x - 25 * s, y + 25 * s); ctx.lineTo(x + 25 * s, y + 25 * s); ctx.closePath(); ctx.fill();
+    }
+    function relToScreen(delta, lane, W, H) {
+      const clamped = Math.max(0, Math.min(.18, delta));
+      const t = 1 - clamped / .18;
+      return { x: W / 2 + lane * (54 + t * 150) + Math.sin((state.progress + delta) * 50) * 55 * (1 - t), y: H * (.42 + t * .40), scale: .38 + t * .92, visible: delta >= -0.02 && delta <= .18 };
+    }
+    function drawObjects(ctx, W, H) {
+      state.objects.forEach((obj) => {
+        if (!obj.active) return;
+        const pos = relToScreen(obj.progress - state.progress, obj.lane, W, H);
+        if (!pos.visible) return;
+        drawItem(ctx, pos.x, pos.y, pos.scale, obj.type);
+      });
+    }
+    function drawRivals(ctx, W, H) {
+      const rivals = [...state.rivals];
+      Object.values(state.remotePlayers).forEach((p, i) => { if (p.id !== state.playerId) rivals.push({ ...p, lane: (i % 3) - 1, color: p.color || COLORS[i % COLORS.length] }); });
+      rivals.forEach((r) => {
+        const pos = relToScreen(r.progress - state.progress, r.lane || 0, W, H);
+        if (pos.visible) drawKart(ctx, pos.x, pos.y, pos.scale, r.color || "#f05b5b", 0, r.character || "rival");
+      });
+    }
+    function drawKart(ctx, x, y, s, color, tilt, character) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(tilt);
+      ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(0, 24 * s, 46 * s, 12 * s, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#1f2937"; [-34, 34].forEach((wx) => { ctx.fillRect(wx * s - 11 * s, -8 * s, 22 * s, 44 * s); });
+      ctx.fillStyle = color; roundRect(ctx, -42 * s, -30 * s, 84 * s, 70 * s, 10 * s); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.22)"; roundRect(ctx, -30 * s, -22 * s, 60 * s, 18 * s, 8 * s); ctx.fill();
+      ctx.fillStyle = "#fff7d6"; ctx.beginPath(); ctx.arc(0, -38 * s, 27 * s, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#2d3748"; ctx.font = `${18 * s}px ${getComputedStyle(document.body).fontFamily}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(character === "hana" ? "花" : character === "sora" ? "空" : character === "kira" ? "星" : "も", 0, -38 * s);
+      ctx.restore();
+    }
+    function drawItem(ctx, x, y, s, type) {
+      ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+      if (type === "coin") { ctx.fillStyle = "#f7c948"; ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#fff5bf"; ctx.lineWidth = 5; ctx.stroke(); ctx.fillStyle = "#9a6b00"; ctx.fillText("$", -5, 7); }
+      if (type === "clock") { ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#3ebf6a"; ctx.lineWidth = 5; ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -11); ctx.lineTo(9, 0); ctx.stroke(); }
+      if (type === "boost") { ctx.fillStyle = "#9a7cff"; ctx.beginPath(); ctx.moveTo(-12, 20); ctx.lineTo(2, 2); ctx.lineTo(-8, 2); ctx.lineTo(12, -22); ctx.lineTo(4, -3); ctx.lineTo(16, -3); ctx.closePath(); ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.stroke(); }
+      if (type === "question") { ctx.fillStyle = "#ff9d37"; roundRect(ctx, -24, -24, 48, 48, 8); ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 5; ctx.stroke(); ctx.fillStyle = "#fff"; ctx.font = "bold 34px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("?", 0, 3); }
+      ctx.restore();
+    }
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    }
+    function drawMini() {
+      const ctx = els.miniCanvas.getContext("2d"), W = els.miniCanvas.width, H = els.miniCanvas.height;
+      ctx.clearRect(0, 0, W, H); ctx.fillStyle = "#789945"; ctx.fillRect(0, 0, W, H);
+      drawMiniPath(ctx, "#ead9b6", 24); drawMiniPath(ctx, "#334047", 16); drawMiniPath(ctx, "rgba(255,255,255,.7)", 2, [5, 5]);
+      const p = pointAt(state.progress); ctx.fillStyle = state.color; ctx.beginPath(); ctx.arc(p.x * W, p.y * H, 5, 0, Math.PI * 2); ctx.fill();
+      state.rivals.forEach((r) => { const rp = pointAt(r.progress); ctx.fillStyle = r.color; ctx.beginPath(); ctx.arc(rp.x * W, rp.y * H, 3.5, 0, Math.PI * 2); ctx.fill(); });
+    }
+    function drawMiniPath(ctx, color, width, dash = []) {
+      ctx.save(); ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.setLineDash(dash);
+      TRACK.forEach(([x, y], i) => i ? ctx.lineTo(x * 132, y * 132) : ctx.moveTo(x * 132, y * 132)); ctx.stroke(); ctx.restore();
+    }
+    function drawHero() {
+      const ctx = els.heroCanvas.getContext("2d"), c = els.heroCanvas, w = c.width, h = c.height, d = devicePixelRatio;
+      ctx.clearRect(0, 0, w, h); ctx.save(); ctx.scale(d, d); drawWorld(ctx, w / d, h / d, performance.now() * .00004); drawKart(ctx, w / d * .5, h / d * .72, .9, "#2799dc", 0, "momo"); ctx.restore(); requestAnimationFrame(drawHero);
+    }
+
+    function toast(text) {
+      els.toast.textContent = text; els.toast.classList.add("show");
+      clearTimeout(toast.timer); toast.timer = setTimeout(() => els.toast.classList.remove("show"), 900);
+    }
+    const keys = ["1","2","3","4","5","6","7","8","9","清除","0","送出"];
+    els.keypad.innerHTML = keys.map((k) => `<button class="key ${k === "清除" ? "clear" : ""}" data-key="${k}">${k}</button>`).join("");
+    els.keypad.addEventListener("click", (e) => {
+      const k = e.target.closest(".key")?.dataset.key; if (!k) return;
+      if (k === "清除") els.answerInput.value = "";
+      else if (k === "送出") submitAnswer();
+      else if (els.answerInput.value.length < 6) els.answerInput.value += k;
+    });
+    els.submitAnswer.addEventListener("click", submitAnswer);
+    window.addEventListener("keydown", (e) => {
+      if (els.questionModal.classList.contains("active")) {
+        if (/^[0-9]$/.test(e.key) && els.answerInput.value.length < 6) { e.preventDefault(); els.answerInput.value += e.key; }
+        if (e.key === "Backspace" || e.key === "Delete") { e.preventDefault(); els.answerInput.value = els.answerInput.value.slice(0, -1); }
+        if (e.key === "Enter") { e.preventDefault(); submitAnswer(); }
+        return;
+      }
+      if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") state.steer = -1;
+      if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") state.steer = 1;
+    }, true);
+    window.addEventListener("keyup", (e) => {
+      if ((e.key === "ArrowLeft" || e.key === "a" || e.key === "A") && state.steer < 0) state.steer = 0;
+      if ((e.key === "ArrowRight" || e.key === "d" || e.key === "D") && state.steer > 0) state.steer = 0;
+    });
+    function hold(btn, val) {
+      btn.addEventListener("pointerdown", (e) => { e.preventDefault(); state.steer = val; });
+      btn.addEventListener("pointerup", () => state.steer = 0);
+      btn.addEventListener("pointerleave", () => state.steer = 0);
+    }
+    hold(els.leftBtn, -1); hold(els.rightBtn, 1);
+    els.backHome.addEventListener("click", () => { els.gameScreen.classList.remove("active"); els.homeScreen.classList.add("active"); els.resultModal.classList.remove("active"); });
+    els.again.addEventListener("click", startRace);
+
+    function saveScore(record) {
+      const entry = { name: state.name, mode: state.mode === "solo" ? "單人" : "對戰", score: state.score, correct: state.correct, date: Date.now() };
+      const local = loadLocalScores(); local.push(entry); local.sort((a, b) => b.score - a.score); local.splice(8); localStorage.setItem(STORAGE_KEY, JSON.stringify(local));
+      saveRemoteScore(entry);
+    }
+    function loadLocalScores() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; } }
+    async function saveRemoteScore(entry) {
+      const fb = await getFirebase().catch(() => null); if (!fb) return;
+      const { db, collection, addDoc, serverTimestamp } = fb;
+      await addDoc(collection(db, FIREBASE_COLLECTION), { ...entry, createdAt: serverTimestamp() });
+    }
+    async function showLeaderboard() {
+      els.leaderModal.classList.add("active");
+      let scores = loadLocalScores();
+      const fb = await getFirebase().catch(() => null);
+      if (fb) {
+        try {
+          const { db, collection, getDocs, query, orderBy, limit } = fb;
+          const snap = await getDocs(query(collection(db, FIREBASE_COLLECTION), orderBy("score", "desc"), limit(8)));
+          scores = snap.docs.map((d) => d.data());
+        } catch (e) { console.warn(e); }
+      }
+      els.leaderRows.innerHTML = scores.length ? scores.map((s, i) => `<tr><td>${i + 1}</td><td>${escapeHTML(s.name)}</td><td>${escapeHTML(s.mode || "單人")}</td><td>${s.score || 0}</td></tr>`).join("") : `<tr><td colspan="4">目前沒有紀錄</td></tr>`;
+    }
+
+    bindHome();
+    fitCanvas();
+    drawHero();
+    getFirebase().catch(() => {
+      els.firebaseStatus.textContent = "本機排行榜";
+      els.firebaseStatus.className = "pill firebase-status local";
+    });
+  </script>
+</body>
+</html>
