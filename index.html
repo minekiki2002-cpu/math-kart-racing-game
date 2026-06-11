@@ -354,6 +354,8 @@
       furthestSceneryZ: -120,
       furthestWallZ: -120,
       furthestPennantZ: -260,
+      furthestArchZ: -8,
+      furthestStandZ: -300,
       itemCursor: 0,
       laneCursor: 0,
       itemPattern: ["question_gate", "coin", "clock", "coin", "boost", "coin", "clock", "question_gate", "coin", "boost"],
@@ -559,7 +561,7 @@
     addSteerEvent(document.getElementById("btn-right"), 1);
 
     let scene, camera, renderer;
-    let playerCar, viewKart, road, grass, startLine, roadOrigX, gridTexture, skyPanorama;
+    let playerCar, viewKart, road, grass, startLine, roadOrigX, gridTexture, skyPanorama, sunLight, playerShadow;
     let chaseRivals = [];
     let npcs = [];
     let items = [];
@@ -581,22 +583,35 @@
       scene.fog = new THREE.Fog(0xd9efd2, 130, 520);
       camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 650);
       renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(window.innerWidth, window.innerHeight);
       container.appendChild(renderer.domElement);
-      scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+      scene.add(new THREE.AmbientLight(0xffffff, 0.75));
       scene.add(new THREE.HemisphereLight(0xbfe3ff, 0x67c25c, 0.45));
-      const dirLight = new THREE.DirectionalLight(0xfff3d6, 0.7);
-      dirLight.position.set(60, 120, -80);
-      scene.add(dirLight);
+      sunLight = new THREE.DirectionalLight(0xfff3d6, 0.8);
+      sunLight.position.set(60, 120, -80);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.set(2048, 2048);
+      sunLight.shadow.camera.left = -130;
+      sunLight.shadow.camera.right = 130;
+      sunLight.shadow.camera.top = 140;
+      sunLight.shadow.camera.bottom = -140;
+      sunLight.shadow.camera.near = 10;
+      sunLight.shadow.camera.far = 420;
+      sunLight.shadow.bias = -0.0005;
+      scene.add(sunLight);
+      scene.add(sunLight.target);
 
       gridTexture = createGridTexture();
       grass = new THREE.Mesh(
         new THREE.PlaneGeometry(1000, 4000, 10, 80),
-        new THREE.MeshBasicMaterial({ map: gridTexture })
+        new THREE.MeshLambertMaterial({ map: gridTexture })
       );
       grass.rotation.x = -Math.PI / 2;
       grass.position.y = -1.2;
+      grass.receiveShadow = true;
       scene.add(grass);
 
       createRoad();
@@ -610,7 +625,16 @@
       viewKart.position.set(0, -3.2, -11);
       viewKart.scale.set(0.92, 0.92, 0.92);
       viewKart.visible = false;
+      viewKart.traverse((obj) => { obj.castShadow = false; });
       camera.add(viewKart);
+      playerShadow = new THREE.Mesh(
+        new THREE.CircleGeometry(2.4, 18),
+        new THREE.MeshBasicMaterial({ color: 0x14321c, transparent: true, opacity: 0.28, depthWrite: false })
+      );
+      playerShadow.rotation.x = -Math.PI / 2;
+      playerShadow.scale.set(1, 1.5, 1);
+      playerShadow.visible = false;
+      scene.add(playerShadow);
       chaseRivals = [0xe52521, 0x43b047, 0xfbd000].map((color, index) => {
         const rival = createKart(color);
         rival.scale.set(0.45, 0.45, 0.45);
@@ -658,6 +682,14 @@
       materials.neonCyan = new THREE.MeshLambertMaterial({ color: 0xffd400 });
       materials.walls = [createWallMaterial(0), createWallMaterial(1), createWallMaterial(2)];
       materials.pennant = createPennantMaterial();
+      materials.balloonY = new THREE.MeshLambertMaterial({ color: 0xffd400 });
+      materials.balloonB = new THREE.MeshLambertMaterial({ color: 0x42a5f5 });
+      materials.crowd = [0xffd9b3, 0xff5252, 0x42a5f5, 0xffd400, 0x9d4edd, 0x43b047].map((c) => new THREE.MeshLambertMaterial({ color: c }));
+      materials.roofs = [0xff5252, 0x42a5f5, 0xffb300].map((c) => new THREE.MeshLambertMaterial({ color: c }));
+      materials.stand = new THREE.MeshLambertMaterial({ color: 0xe8ebf0 });
+      materials.standBack = new THREE.MeshLambertMaterial({ color: 0xd5dae2 });
+      materials.archBlue = new THREE.MeshLambertMaterial({ color: 0x2f7fd6 });
+      materials.archRed = new THREE.MeshLambertMaterial({ color: 0xe84d3d });
 
       resetStartScene();
       window.addEventListener("resize", () => {
@@ -698,6 +730,7 @@
       texture.repeat.set(1, roadLength / 30);
       const roadGeo = new THREE.PlaneGeometry(60, roadLength, 10, 320);
       road = new THREE.Mesh(roadGeo, new THREE.MeshLambertMaterial({ map: texture }));
+      road.receiveShadow = true;
       road.rotation.x = -Math.PI / 2;
       road.position.z = -roadLength / 2 + 100;
       scene.add(road);
@@ -772,7 +805,7 @@
         stripe.position.set(x, 0.72, 0);
         kart.add(stripe);
       });
-      const nose = new THREE.Mesh(new THREE.SphereGeometry(1.05, 16, 14), bodyMat);
+      const nose = new THREE.Mesh(new THREE.SphereGeometry(1.05, 22, 18), bodyMat);
       nose.scale.set(1.1, 0.58, 1.4);
       nose.position.set(0, 0.82, -1.5);
       addOutline(nose, 1.05);
@@ -890,6 +923,12 @@
         axle.add(hub);
         const bolt = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.16, radius * 0.16, 0.66, 6), darkMat);
         axle.add(bolt);
+        if (isFront) {
+          const fender = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.28, 0.14, 8, 14, Math.PI), bodyMat);
+          fender.rotation.y = Math.PI / 2;
+          fender.position.y = 0.1;
+          steerGroup.add(fender);
+        }
         steerGroup.add(axle);
         kart.add(steerGroup);
         wheels.push(tire);
@@ -903,7 +942,7 @@
       addWheel(1.38, 1.5, 0.68, false);
 
       const driver = new THREE.Group();
-      const torso = new THREE.Mesh(new THREE.SphereGeometry(0.6, 14, 12), bodyMat);
+      const torso = new THREE.Mesh(new THREE.SphereGeometry(0.6, 18, 14), bodyMat);
       torso.scale.set(0.95, 0.8, 0.72);
       torso.position.y = 0.45;
       addOutline(torso, 1.07);
@@ -932,7 +971,7 @@
       const collar = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.22, 1.5), whiteMat);
       collar.position.y = 0.88;
       driver.add(collar);
-      const helmet = new THREE.Mesh(new THREE.SphereGeometry(1.0, 18, 16), whiteMat);
+      const helmet = new THREE.Mesh(new THREE.SphereGeometry(1.0, 24, 20), whiteMat);
       helmet.position.y = 1.5;
       addOutline(helmet, 1.05);
       driver.add(helmet);
@@ -948,6 +987,9 @@
         vent.rotation.x = 0.55;
         driver.add(vent);
       });
+      const visorFrame = new THREE.Mesh(new THREE.BoxGeometry(1.26, 0.54, 0.2), darkMat);
+      visorFrame.position.set(0, 1.42, -0.78);
+      driver.add(visorFrame);
       const visor = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.4, 0.3), visorMat);
       visor.position.set(0, 1.42, -0.88);
       driver.add(visor);
@@ -962,14 +1004,9 @@
       driver.position.set(0, 0.85, 0.85);
       kart.add(driver);
       kart.userData.head = driver;
-      const shadow = new THREE.Mesh(
-        new THREE.CircleGeometry(2.1, 18),
-        new THREE.MeshBasicMaterial({ color: 0x10301a, transparent: true, opacity: 0.24, depthWrite: false })
-      );
-      shadow.rotation.x = -Math.PI / 2;
-      shadow.scale.set(1, 1.45, 1);
-      shadow.position.y = 0.06;
-      kart.add(shadow);
+      kart.traverse((obj) => {
+        if (obj.isMesh && obj.material !== outlineMat) obj.castShadow = true;
+      });
 
       kart.userData.animateKart = (steerVel, speed, now, boosting) => {
         const lean = Math.max(-1.4, Math.min(1.4, steerVel));
@@ -1001,6 +1038,11 @@
         frond.rotateX(0.45 + Math.random() * 0.3);
         group.add(frond);
       }
+      [[0.42, 12.6, 0.2], [-0.38, 12.5, -0.25]].forEach((pos) => {
+        const coconut = new THREE.Mesh(new THREE.SphereGeometry(0.42, 8, 8), materials.trunk);
+        coconut.position.set(pos[0], pos[1], pos[2]);
+        group.add(coconut);
+      });
       return group;
     }
     function createNeonPole(colorMaterial) {
@@ -1008,9 +1050,13 @@
       const pole = new THREE.Mesh(geos.pole, materials.pole);
       pole.position.y = 6;
       group.add(pole);
-      const balloon = new THREE.Mesh(geos.balloon, colorMaterial);
-      balloon.position.y = 13.8;
-      group.add(balloon);
+      const bundle = [colorMaterial, materials.balloonY, materials.balloonB];
+      [[0, 14.7, 0], [-1.15, 13.7, 0.5], [1.1, 13.5, -0.4]].forEach((pos, index) => {
+        const balloon = new THREE.Mesh(geos.balloon, bundle[index % bundle.length]);
+        balloon.scale.setScalar(0.78);
+        balloon.position.set(pos[0], pos[1], pos[2]);
+        group.add(balloon);
+      });
       return group;
     }
     function createQuestionMaterial() {
@@ -1098,6 +1144,89 @@
       }
       return new THREE.MeshLambertMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true, side: THREE.DoubleSide });
     }
+    function createSymbolMaterial(symbol, color) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, 64, 64);
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = "rgba(255,255,255,0.85)";
+      ctx.strokeRect(3, 3, 58, 58);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 42px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(symbol, 32, 35);
+      return new THREE.MeshLambertMaterial({ map: new THREE.CanvasTexture(canvas) });
+    }
+    function createBannerMaterial() {
+      const canvas = document.createElement("canvas");
+      canvas.width = 256;
+      canvas.height = 56;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#e84d3d";
+      ctx.fillRect(0, 0, 256, 56);
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = "#ffffff";
+      ctx.strokeRect(3, 3, 250, 50);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 26px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("START / FINISH", 128, 30);
+      return new THREE.MeshLambertMaterial({ map: new THREE.CanvasTexture(canvas) });
+    }
+    function createMathArch() {
+      const group = new THREE.Group();
+      const arc = new THREE.Mesh(new THREE.TorusGeometry(33, 1.5, 10, 30, Math.PI), materials.archBlue);
+      arc.scale.y = 0.55;
+      group.add(arc);
+      [-33, 33].forEach((x) => {
+        const pillar = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, 13, 10), materials.pole);
+        pillar.position.set(x, 6.5, 0);
+        group.add(pillar);
+        [3, 7, 11].forEach((y) => {
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.24, 8, 14), materials.archRed);
+          ring.rotation.x = Math.PI / 2;
+          ring.position.set(x, y, 0);
+          group.add(ring);
+        });
+      });
+      const banner = new THREE.Mesh(new THREE.BoxGeometry(12, 2.6, 0.7), createBannerMaterial());
+      banner.position.set(0, 16.4, 0);
+      group.add(banner);
+      [["+", "#ffd400", -20, 11.2], ["−", "#ff5252", -10, 14.8], ["×", "#43b047", 10, 14.8], ["÷", "#ff8a30", 20, 11.2]].forEach(([symbol, color, x, y]) => {
+        const tile = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.4, 0.9), createSymbolMaterial(symbol, color));
+        tile.position.set(x, y, 0);
+        group.add(tile);
+      });
+      group.traverse((obj) => { if (obj.isMesh) obj.castShadow = true; });
+      return group;
+    }
+    function createGrandstand(side) {
+      const group = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.BoxGeometry(5, 2.6, 16), materials.stand);
+      base.position.y = 1.3;
+      group.add(base);
+      const back = new THREE.Mesh(new THREE.BoxGeometry(1.2, 5.4, 16), materials.standBack);
+      back.position.set(side * 1.9, 2.7, 0);
+      group.add(back);
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.5, 17), materials.roofs[Math.floor(Math.random() * materials.roofs.length)]);
+      roof.position.set(side * 0.6, 5.8, 0);
+      roof.rotation.z = side * 0.12;
+      group.add(roof);
+      for (let row = 0; row < 2; row += 1) {
+        for (let seat = 0; seat < 7; seat += 1) {
+          const person = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 8), materials.crowd[Math.floor(Math.random() * materials.crowd.length)]);
+          person.position.set(side * (row * 1.5 - 0.6), 3.1 + row * 1.1, seat * 2.1 - 6.3);
+          group.add(person);
+        }
+      }
+      group.traverse((obj) => { if (obj.isMesh) obj.castShadow = true; });
+      return group;
+    }
     function createGridTexture() {
       const canvas = document.createElement("canvas");
       canvas.width = 128;
@@ -1108,6 +1237,17 @@
       ctx.fillStyle = "#64c757";
       ctx.fillRect(0, 0, 64, 64);
       ctx.fillRect(64, 64, 64, 64);
+      const flowerColors = ["#ffffff", "#ffe082", "#ff8ab5", "#ffffff"];
+      for (let i = 0; i < 8; i += 1) {
+        const fx = Math.random() * 120 + 4;
+        const fy = Math.random() * 120 + 4;
+        ctx.fillStyle = flowerColors[i % flowerColors.length];
+        ctx.beginPath();
+        ctx.arc(fx, fy, 1.7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#ffd400";
+        ctx.fillRect(fx - 0.6, fy - 0.6, 1.2, 1.2);
+      }
       const texture = new THREE.CanvasTexture(canvas);
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
@@ -1312,6 +1452,7 @@
         [-24, -12, 0, 12, 24].forEach((x) => {
           const mesh = new THREE.Mesh(geos.box, materials.question);
           mesh.position.set(x, 4, 0);
+          mesh.castShadow = true;
           gateGroup.add(mesh);
         });
         scene.add(gateGroup);
@@ -1343,6 +1484,7 @@
       const mesh = sceneryCount % 4 === 0
         ? createNeonPole(sceneryCount % 8 === 0 ? materials.neonCyan : materials.neonPink)
         : createPalm();
+      mesh.traverse((obj) => { if (obj.isMesh) obj.castShadow = true; });
       const baseX = (40 + Math.random() * 14) * side;
       mesh.position.set(baseX + getCurveShift(worldZ), getElevation(worldZ), worldZ);
       scene.add(mesh);
@@ -1352,6 +1494,7 @@
     function spawnWall(worldZ, side) {
       wallCount += 1;
       const mesh = new THREE.Mesh(geos.wall, materials.walls[wallCount % materials.walls.length]);
+      mesh.castShadow = true;
       const baseX = 33.5 * side;
       mesh.position.set(baseX + getCurveShift(worldZ), getElevation(worldZ), worldZ);
       mesh.rotation.y = (getCurveShift(worldZ - 14) - getCurveShift(worldZ + 14)) / 28;
@@ -1363,6 +1506,36 @@
         spawnWall(state.furthestWallZ, 1);
         spawnWall(state.furthestWallZ, -1);
         state.furthestWallZ -= 28;
+      }
+    }
+    function spawnArch(worldZ) {
+      const mesh = createMathArch();
+      mesh.position.set(getCurveShift(worldZ), getElevation(worldZ), worldZ);
+      mesh.rotation.y = (getCurveShift(worldZ - 14) - getCurveShift(worldZ + 14)) / 28;
+      scene.add(mesh);
+      items.push({ mesh, type: "scenery", active: false, baseX: 0, baseZ: worldZ });
+    }
+    function fillArchesAhead() {
+      while (state.furthestArchZ > state.playerZ - SCENERY_AHEAD_DISTANCE) {
+        spawnArch(state.furthestArchZ);
+        state.furthestArchZ -= 2600;
+      }
+    }
+    let standCount = 0;
+    function spawnGrandstand(worldZ) {
+      standCount += 1;
+      const side = standCount % 2 === 0 ? 1 : -1;
+      const mesh = createGrandstand(side);
+      const baseX = 47 * side;
+      mesh.position.set(baseX + getCurveShift(worldZ), getElevation(worldZ), worldZ);
+      mesh.rotation.y = (getCurveShift(worldZ - 8) - getCurveShift(worldZ + 8)) / 16;
+      scene.add(mesh);
+      items.push({ mesh, type: "scenery", active: false, baseX, baseZ: worldZ });
+    }
+    function fillGrandstandsAhead() {
+      while (state.furthestStandZ > state.playerZ - SCENERY_AHEAD_DISTANCE) {
+        spawnGrandstand(state.furthestStandZ);
+        state.furthestStandZ -= 430;
       }
     }
     function spawnPennant(worldZ) {
@@ -1558,6 +1731,8 @@
       state.furthestSceneryZ = -120;
       state.furthestWallZ = -120;
       state.furthestPennantZ = -260;
+      state.furthestArchZ = -8;
+      state.furthestStandZ = -300;
       state.isPlaying = false;
       state.isPaused = false;
       state.finished = false;
@@ -1574,6 +1749,8 @@
       fillSceneryAhead();
       fillWallsAhead();
       fillPennantsAhead();
+      fillArchesAhead();
+      fillGrandstandsAhead();
 
       const colors = [0xff5252, 0x9d4edd, 0xffb300];
       const npcSlots = [-21, 7, 21];
@@ -1640,6 +1817,7 @@
       if (state.isSetup) {
         if (viewKart) viewKart.visible = false;
         playerCar.visible = true;
+        if (playerShadow) playerShadow.visible = false;
         setChaseRivalsVisible(false);
         updateRoadGeometryAround(0);
         resetStartScene();
@@ -1686,6 +1864,10 @@
         playerCar.position.set(state.playerX + curveOffset, playerElev, state.playerZ);
         const pitch = Math.atan2(getElevation(state.playerZ - 2) - playerElev, 2);
         playerCar.rotation.set(pitch, (getCurveShift(state.playerZ - 5) - curveOffset) * 0.05 - state.steerVel * 0.14, -state.steerVel * 0.08);
+        playerShadow.visible = true;
+        playerShadow.position.set(playerCar.position.x, playerElev + 0.07, state.playerZ);
+        sunLight.position.set(playerCar.position.x + 60, 120, state.playerZ - 80);
+        sunLight.target.position.set(playerCar.position.x, 0, state.playerZ);
         updateRoadGeometryAround(state.playerZ);
         grass.position.z = state.playerZ - 1000;
         const grassAttr = grass.geometry.attributes.position;
@@ -1698,6 +1880,8 @@
         fillSceneryAhead();
         fillWallsAhead();
         fillPennantsAhead();
+        fillArchesAhead();
+        fillGrandstandsAhead();
         updateItems();
         updateNPCs();
         updateChaseCamera(false);
