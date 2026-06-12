@@ -4,7 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>快樂卡丁車：整數運算GO GO GO｜陽光賽道版</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
   <style>
     :root {
       --primary: #049cd8;
@@ -274,7 +281,17 @@
     </div>
   </section>
 
-  <script>
+  <script type="module">
+    import * as THREE_ns from 'three';
+    import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    const THREE = Object.assign({}, THREE_ns);
+    THREE.CanvasTexture = class extends THREE_ns.CanvasTexture {
+      constructor(...args) {
+        super(...args);
+        this.colorSpace = THREE_ns.SRGBColorSpace;
+      }
+    };
     let audioCtx;
     let bgmInterval;
     let timerInterval;
@@ -561,7 +578,7 @@
     addSteerEvent(document.getElementById("btn-right"), 1);
 
     let scene, camera, renderer;
-    let playerCar, viewKart, road, grass, startLine, roadOrigX, gridTexture, skyPanorama, sunLight, playerShadow;
+    let playerCar, viewKart, road, grass, startLine, roadOrigX, gridTexture, skyPanorama, sunLight;
     let chaseRivals = [];
     let npcs = [];
     let items = [];
@@ -574,10 +591,6 @@
 
     function init3D() {
       const container = document.getElementById("game-canvas");
-      if (!window.THREE) {
-        container.innerHTML = '<div style="padding:24px;background:white;font:20px sans-serif">Three.js 載入失敗，請確認網路可連到 CDN。</div>';
-        return;
-      }
       scene = new THREE.Scene();
       scene.background = createSkyTexture();
       scene.fog = new THREE.Fog(0xd9efd2, 130, 520);
@@ -588,9 +601,11 @@
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(window.innerWidth, window.innerHeight);
       container.appendChild(renderer.domElement);
-      scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-      scene.add(new THREE.HemisphereLight(0xbfe3ff, 0x67c25c, 0.45));
-      sunLight = new THREE.DirectionalLight(0xfff3d6, 0.8);
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+      scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+      scene.add(new THREE.HemisphereLight(0xbfe3ff, 0x67c25c, 0.5));
+      sunLight = new THREE.DirectionalLight(0xfff3d6, 1.0);
       sunLight.position.set(60, 120, -80);
       sunLight.castShadow = true;
       sunLight.shadow.mapSize.set(2048, 2048);
@@ -627,14 +642,6 @@
       viewKart.visible = false;
       viewKart.traverse((obj) => { obj.castShadow = false; });
       camera.add(viewKart);
-      playerShadow = new THREE.Mesh(
-        new THREE.CircleGeometry(2.4, 18),
-        new THREE.MeshBasicMaterial({ color: 0x14321c, transparent: true, opacity: 0.28, depthWrite: false })
-      );
-      playerShadow.rotation.x = -Math.PI / 2;
-      playerShadow.scale.set(1, 1.5, 1);
-      playerShadow.visible = false;
-      scene.add(playerShadow);
       chaseRivals = [0xe52521, 0x43b047, 0xfbd000].map((color, index) => {
         const rival = createKart(color);
         rival.scale.set(0.45, 0.45, 0.45);
@@ -779,15 +786,15 @@
     function createKart(colorHex, racerNumber) {
       const kart = new THREE.Group();
       kart.scale.set(1.5, 1.5, 1.5);
-      const bodyMat = new THREE.MeshPhongMaterial({ color: colorHex, shininess: 90, specular: 0x666666 });
-      const whiteMat = new THREE.MeshPhongMaterial({ color: 0xf7f9fc, shininess: 70, specular: 0x555555 });
-      const darkMat = new THREE.MeshPhongMaterial({ color: 0x2b3340, shininess: 30, specular: 0x222222 });
-      const tireMat = new THREE.MeshPhongMaterial({ color: 0x1f232b, shininess: 25, specular: 0x333333 });
-      const hubMat = new THREE.MeshPhongMaterial({ color: 0xf4f6f8, shininess: 80, specular: 0x666666 });
-      const metalMat = new THREE.MeshPhongMaterial({ color: 0xcfd8e3, shininess: 130, specular: 0x999999 });
-      const seatMat = new THREE.MeshPhongMaterial({ color: 0xe05038, shininess: 45, specular: 0x442222 });
-      const skinMat = new THREE.MeshLambertMaterial({ color: 0xffd9b3 });
-      const visorMat = new THREE.MeshPhongMaterial({ color: 0x29c5f6, shininess: 150, specular: 0xaaddff, emissive: 0x0a4a66 });
+      const bodyMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.22, metalness: 0.05 });
+      const whiteMat = new THREE.MeshStandardMaterial({ color: 0xf7f9fc, roughness: 0.3, metalness: 0.02 });
+      const darkMat = new THREE.MeshStandardMaterial({ color: 0x2b3340, roughness: 0.55, metalness: 0.1 });
+      const tireMat = new THREE.MeshStandardMaterial({ color: 0x1f232b, roughness: 0.85, metalness: 0 });
+      const hubMat = new THREE.MeshStandardMaterial({ color: 0xf4f6f8, roughness: 0.25, metalness: 0.4 });
+      const metalMat = new THREE.MeshStandardMaterial({ color: 0xcfd8e3, roughness: 0.18, metalness: 0.85 });
+      const seatMat = new THREE.MeshStandardMaterial({ color: 0xe05038, roughness: 0.45, metalness: 0.02 });
+      const skinMat = new THREE.MeshStandardMaterial({ color: 0xffd9b3, roughness: 0.6, metalness: 0 });
+      const visorMat = new THREE.MeshStandardMaterial({ color: 0x29c5f6, roughness: 0.08, metalness: 0.3, emissive: 0x0a4a66 });
       const outlineMat = new THREE.MeshBasicMaterial({ color: 0x232c3a, side: THREE.BackSide });
       const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff1a8 });
       function addOutline(mesh, factor) {
@@ -796,7 +803,7 @@
         mesh.add(outline);
       }
 
-      const floor = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.3, 4.5), bodyMat);
+      const floor = new THREE.Mesh(new RoundedBoxGeometry(2.5, 0.34, 4.5, 2, 0.12), bodyMat);
       floor.position.y = 0.55;
       addOutline(floor, 1.05);
       kart.add(floor);
@@ -842,7 +849,7 @@
         kart.add(suspension);
       });
       [-1, 1].forEach((s) => {
-        const pod = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.45, 2.3), whiteMat);
+        const pod = new THREE.Mesh(new RoundedBoxGeometry(0.6, 0.45, 2.3, 2, 0.14), whiteMat);
         pod.position.set(s * 1.3, 0.72, 0.45);
         addOutline(pod, 1.07);
         kart.add(pod);
@@ -850,7 +857,7 @@
         intake.position.set(s * 1.3, 0.97, -0.1);
         kart.add(intake);
       });
-      const seatBack = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.0, 0.28), seatMat);
+      const seatBack = new THREE.Mesh(new RoundedBoxGeometry(1.25, 1.0, 0.3, 2, 0.1), seatMat);
       seatBack.position.set(0, 1.45, 1.45);
       seatBack.rotation.x = -0.12;
       addOutline(seatBack, 1.07);
@@ -861,10 +868,10 @@
         bolster.rotation.x = -0.12;
         kart.add(bolster);
       });
-      const seatBase = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.22, 1.05), seatMat);
+      const seatBase = new THREE.Mesh(new RoundedBoxGeometry(1.25, 0.24, 1.05, 2, 0.08), seatMat);
       seatBase.position.set(0, 0.92, 0.95);
       kart.add(seatBase);
-      const engine = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.6, 0.75), metalMat);
+      const engine = new THREE.Mesh(new RoundedBoxGeometry(1.05, 0.6, 0.75, 2, 0.12), metalMat);
       engine.position.set(0, 0.95, 2.0);
       addOutline(engine, 1.07);
       kart.add(engine);
@@ -894,7 +901,7 @@
         kart.add(flame);
         flames.push(flame);
       });
-      const rearBumper = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.5, 0.28), darkMat);
+      const rearBumper = new THREE.Mesh(new RoundedBoxGeometry(2.3, 0.5, 0.3, 2, 0.1), darkMat);
       rearBumper.position.set(0, 0.6, 2.42);
       kart.add(rearBumper);
       const column = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.85, 6), darkMat);
@@ -936,10 +943,10 @@
         wheels.push(bolt);
         if (isFront) frontSteer.push(steerGroup);
       }
-      addWheel(-1.36, -1.55, 0.56, true);
-      addWheel(1.36, -1.55, 0.56, true);
-      addWheel(-1.38, 1.5, 0.68, false);
-      addWheel(1.38, 1.5, 0.68, false);
+      addWheel(-1.38, -1.55, 0.62, true);
+      addWheel(1.38, -1.55, 0.62, true);
+      addWheel(-1.42, 1.5, 0.78, false);
+      addWheel(1.42, 1.5, 0.78, false);
 
       const driver = new THREE.Group();
       const torso = new THREE.Mesh(new THREE.SphereGeometry(0.6, 18, 14), bodyMat);
@@ -987,10 +994,10 @@
         vent.rotation.x = 0.55;
         driver.add(vent);
       });
-      const visorFrame = new THREE.Mesh(new THREE.BoxGeometry(1.26, 0.54, 0.2), darkMat);
+      const visorFrame = new THREE.Mesh(new RoundedBoxGeometry(1.26, 0.54, 0.22, 2, 0.09), darkMat);
       visorFrame.position.set(0, 1.42, -0.78);
       driver.add(visorFrame);
-      const visor = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.4, 0.3), visorMat);
+      const visor = new THREE.Mesh(new RoundedBoxGeometry(1.1, 0.4, 0.32, 2, 0.13), visorMat);
       visor.position.set(0, 1.42, -0.88);
       driver.add(visor);
       const crest = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.09, 1.7), bodyMat);
@@ -1317,6 +1324,7 @@
     }
     function loadSkyPanorama(sun, skyline) {
       new THREE.TextureLoader().load("sky-panorama-day.jpg", (texture) => {
+        texture.colorSpace = THREE_ns.SRGBColorSpace;
         texture.wrapS = THREE.MirroredRepeatWrapping;
         texture.repeat.set(2, 1);
         const cylinder = new THREE.Mesh(
@@ -1419,17 +1427,17 @@
     }
     function updateChaseCamera(immediate = false) {
       const targetX = playerCar.position.x;
-      const targetY = playerCar.position.y + 8.0;
-      const targetZ = state.playerZ + 30;
+      const targetY = playerCar.position.y + 6.4;
+      const targetZ = state.playerZ + 13.5 + state.actualSpeed * 1.1;
       const lookX = playerCar.position.x;
-      const lookY = playerCar.position.y + 1.7;
-      const lookZ = state.playerZ;
+      const lookY = playerCar.position.y + 2.3;
+      const lookZ = state.playerZ - 7;
       if (immediate) {
         camera.position.set(targetX, targetY, targetZ);
       } else {
-        camera.position.x += (targetX - camera.position.x) * 0.12;
-        camera.position.y += (targetY - camera.position.y) * 0.12;
-        camera.position.z += (targetZ - camera.position.z) * 0.12;
+        camera.position.x += (targetX - camera.position.x) * 0.14;
+        camera.position.y += (targetY - camera.position.y) * 0.14;
+        camera.position.z = targetZ;
       }
       camera.lookAt(lookX, lookY, lookZ);
     }
@@ -1760,7 +1768,7 @@
           npc = makeCarSprite(carTextures.npcs[index], 8.4);
         } else {
           npc = createKart(colors[index], index + 2);
-          npc.scale.set(1.75, 1.75, 1.75);
+          npc.scale.set(1.55, 1.55, 1.55);
         }
         npc.position.set(slot + getCurveShift(0), getElevation(0), 0);
         scene.add(npc);
@@ -1817,7 +1825,6 @@
       if (state.isSetup) {
         if (viewKart) viewKart.visible = false;
         playerCar.visible = true;
-        if (playerShadow) playerShadow.visible = false;
         setChaseRivalsVisible(false);
         updateRoadGeometryAround(0);
         resetStartScene();
@@ -1834,13 +1841,9 @@
         return;
       }
       if (state.isPlaying && !state.isPaused) {
-        if (viewKart) {
-          viewKart.visible = true;
-          viewKart.rotation.y = -state.steerVel * 0.16;
-          viewKart.rotation.z = -state.steerVel * 0.07;
-          if (viewKart.userData.animateKart) viewKart.userData.animateKart(state.steerVel, state.actualSpeed, Date.now(), state.boostTime > 0);
-        }
-        playerCar.visible = false;
+        if (viewKart) viewKart.visible = false;
+        playerCar.visible = true;
+        if (playerCar.userData.animateKart) playerCar.userData.animateKart(state.steerVel, state.actualSpeed, Date.now(), state.boostTime > 0);
       setChaseRivalsVisible(false);
         const pulse = 1 + Math.sin(Date.now() * 0.0018) * 0.045;
         const targetSpeed = state.boostTime > 0 ? state.baseSpeed * 3.35 : state.baseSpeed * pulse;
@@ -1864,8 +1867,6 @@
         playerCar.position.set(state.playerX + curveOffset, playerElev, state.playerZ);
         const pitch = Math.atan2(getElevation(state.playerZ - 2) - playerElev, 2);
         playerCar.rotation.set(pitch, (getCurveShift(state.playerZ - 5) - curveOffset) * 0.05 - state.steerVel * 0.14, -state.steerVel * 0.08);
-        playerShadow.visible = true;
-        playerShadow.position.set(playerCar.position.x, playerElev + 0.07, state.playerZ);
         sunLight.position.set(playerCar.position.x + 60, 120, state.playerZ - 80);
         sunLight.target.position.set(playerCar.position.x, 0, state.playerZ);
         updateRoadGeometryAround(state.playerZ);
@@ -1952,7 +1953,7 @@
         const yaw = (getCurveShift(npc.baseZ - 5) - getCurveShift(npc.baseZ)) * 0.035;
         npc.mesh.visible = true;
         if (npc.mesh.userData.head) npc.mesh.userData.head.visible = true;
-        npc.mesh.position.set(npcX, npcElev + 0.55, npc.baseZ);
+        npc.mesh.position.set(npcX, npcElev + 0.05, npc.baseZ);
         npc.mesh.rotation.set(pitch, yaw, 0);
         if (npc.mesh.userData.animateKart) npc.mesh.userData.animateKart(0, npc.speed, Date.now() + npc.phase * 1000);
       });
@@ -2133,6 +2134,15 @@
     function escapeHTML(str) {
       return String(str).replace(/[&<>'"]/g, (tag) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[tag] || tag));
     }
+    window.__g = {
+      get state() { return state; },
+      get items() { return items; },
+      get els() { return els; },
+      get camera() { return camera; },
+      get playerCar() { return playerCar; },
+      answer(v) { els.answerInput.value = String(v != null ? v : state.currentAnswer); checkAnswer(); },
+      disarm() { items.forEach((i) => { if (i.type === "question_gate") i.active = false; }); }
+    };
     init3D();
   </script>
 </body>
