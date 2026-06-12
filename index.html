@@ -1489,16 +1489,19 @@
       camera.lookAt(roadCenterX, getElevation(-28) + 2.8, -28);
     }
     function updateChaseCamera(immediate = false) {
-      const targetX = playerCar.position.x;
+      const dirX = (getCurveShift(state.playerZ - 8) - getCurveShift(state.playerZ)) / 8;
+      const len = Math.sqrt(1 + dirX * dirX);
+      const pull = 13.5 + state.actualSpeed * 1.1;
+      const targetX = playerCar.position.x - (dirX * pull) / len;
       const targetY = playerCar.position.y + 6.4;
-      const targetZ = state.playerZ + 13.5 + state.actualSpeed * 1.1;
-      const lookX = playerCar.position.x;
+      const targetZ = state.playerZ + pull / len;
+      const lookX = playerCar.position.x + (dirX * 7) / len;
       const lookY = playerCar.position.y + 2.3;
-      const lookZ = state.playerZ - 7;
+      const lookZ = state.playerZ - 7 / len;
       if (immediate) {
         camera.position.set(targetX, targetY, targetZ);
       } else {
-        camera.position.x += (targetX - camera.position.x) * 0.14;
+        camera.position.x += (targetX - camera.position.x) * 0.18;
         camera.position.y += (targetY - camera.position.y) * 0.14;
         camera.position.z = targetZ;
       }
@@ -1714,40 +1717,61 @@
       minimapCtx.clearRect(0, 0, 120, 120);
       minimapCtx.fillStyle = "#7ec850";
       minimapCtx.fillRect(0, 0, 120, 120);
-      drawMapPath("#e8e2d0", 22);
-      drawMapPath("#e84d3d", 17, [7, 7]);
-      drawMapPath("#ffffff", 17, [7, 7], 7);
-      drawMapPath("#5a6472", 13);
-      drawMapPath("rgba(255,255,255,0.85)", 1.5, [5, 5]);
-      [[23, 19], [31, 17], [88, 68], [48, 35], [70, 103], [102, 96]].forEach(([x, y]) => {
-        minimapCtx.fillStyle = "#2e8b57";
+      const span = 1300;
+      const baseShift = getCurveShift(state.playerZ);
+      const toMapY = (d) => 102 - d * (88 / span);
+      const points = [];
+      for (let d = -60; d <= span; d += 50) {
+        const shift = getCurveShift(state.playerZ - d) - baseShift;
+        points.push([60 + shift * 0.5, toMapY(d)]);
+      }
+      const strokeRoad = (style, width, dash, offset) => {
+        minimapCtx.save();
+        minimapCtx.strokeStyle = style;
+        minimapCtx.lineWidth = width;
+        minimapCtx.lineCap = "round";
+        minimapCtx.lineJoin = "round";
+        minimapCtx.setLineDash(dash || []);
+        minimapCtx.lineDashOffset = offset || 0;
         minimapCtx.beginPath();
-        minimapCtx.arc(x, y, 3.2, 0, Math.PI * 2);
+        points.forEach(([x, y], index) => {
+          if (index === 0) minimapCtx.moveTo(x, y);
+          else minimapCtx.lineTo(x, y);
+        });
+        minimapCtx.stroke();
+        minimapCtx.restore();
+      };
+      strokeRoad("#e84d3d", 17, [6, 6]);
+      strokeRoad("#ffffff", 17, [6, 6], 6);
+      strokeRoad("#8d93a1", 13);
+      strokeRoad("rgba(255,244,150,0.95)", 1.6);
+      const lapAhead = state.playerZ - state.nextLapZ;
+      if (lapAhead >= 0 && lapAhead <= span) {
+        const shift = getCurveShift(state.playerZ - lapAhead) - baseShift;
+        const lx = 60 + shift * 0.5;
+        const ly = toMapY(lapAhead);
+        minimapCtx.fillStyle = "#ffffff";
+        minimapCtx.fillRect(lx - 9, ly - 2.4, 18, 4.8);
+        minimapCtx.fillStyle = "#2b3340";
+        for (let k = 0; k < 3; k += 1) minimapCtx.fillRect(lx - 9 + k * 7, ly - 2.4, 3.5, 2.4);
+      }
+      npcs.forEach((npc) => {
+        const d = state.playerZ - npc.baseZ;
+        if (d < -60 || d > span) return;
+        const shift = getCurveShift(npc.baseZ) - baseShift;
+        minimapCtx.fillStyle = "#e84d3d";
+        minimapCtx.beginPath();
+        minimapCtx.arc(60 + (shift + npc.baseX) * 0.5, toMapY(d), 3, 0, Math.PI * 2);
         minimapCtx.fill();
       });
-      minimapCtx.fillStyle = "#9575cd";
-      minimapCtx.fillRect(7, 86, 9, 13);
-      minimapCtx.fillStyle = "#ff7043";
-      minimapCtx.fillRect(45, 92, 18, 9);
-      minimapCtx.fillStyle = "#42a5f5";
-      minimapCtx.fillRect(100, 18, 10, 14);
-      const progress = ((-state.playerZ / 2600) % 1 + 1) % 1;
-      const [playerMapX, playerMapY] = pointOnMap(progress);
+      const px = 60 + state.playerX * 0.5;
       minimapCtx.fillStyle = "#0288d1";
       minimapCtx.beginPath();
-      minimapCtx.arc(playerMapX, playerMapY, 4.5, 0, Math.PI * 2);
+      minimapCtx.arc(px, 102, 4.5, 0, Math.PI * 2);
       minimapCtx.fill();
       minimapCtx.strokeStyle = "#fff";
       minimapCtx.lineWidth = 2;
       minimapCtx.stroke();
-      npcs.forEach((npc) => {
-        const npcProgress = ((-npc.baseZ / 2600) % 1 + 1) % 1;
-        const [npcX, npcY] = pointOnMap(npcProgress);
-        minimapCtx.fillStyle = "#e84d3d";
-        minimapCtx.beginPath();
-        minimapCtx.arc(npcX, npcY, 3.3, 0, Math.PI * 2);
-        minimapCtx.fill();
-      });
     }
 
     els.btnStart.addEventListener("click", () => {
