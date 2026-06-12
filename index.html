@@ -146,9 +146,9 @@
     .key:active { transform: translateY(4px); box-shadow: none; }
 
     #center-msg {
-      position: fixed; top: 50%; left: 50%; z-index: 50; width: 100%;
+      position: fixed; top: 30%; left: 50%; z-index: 50; width: 100%;
       transform: translate(-50%, -50%); display: none; pointer-events: none;
-      color: #fff; text-align: center; font-size: clamp(64px, 11vw, 110px);
+      color: #fff; text-align: center; font-size: clamp(32px, 5.5vw, 54px);
       font-weight: 900;
       text-shadow: 4px 4px 0 rgba(40,60,90,0.85), -2px -2px 0 rgba(40,60,90,0.85), 2px -2px 0 rgba(40,60,90,0.85), -2px 2px 0 rgba(40,60,90,0.85);
     }
@@ -364,7 +364,7 @@
       steer: 0,
       steerVel: 0,
       actualSpeed: 0,
-      baseSpeed: 1.42,
+      baseSpeed: 1.1,
       speedPulse: 0,
       boostTime: 0,
       furthestItemZ: -500,
@@ -1925,7 +1925,7 @@
         if (playerCar.userData.animateKart) playerCar.userData.animateKart(state.steerVel, state.actualSpeed, Date.now(), state.boostTime > 0);
       setChaseRivalsVisible(false);
         const pulse = 1 + Math.sin(Date.now() * 0.0018) * 0.045;
-        const targetSpeed = state.boostTime > 0 ? state.baseSpeed * 3.35 : state.baseSpeed * pulse;
+        const targetSpeed = state.boostTime > 0 ? state.baseSpeed * 2.6 : state.baseSpeed * pulse;
         state.actualSpeed += (targetSpeed - state.actualSpeed) * 0.18;
         if (state.boostTime > 0) state.boostTime -= 1;
         state.speedPulse = Math.max(0, state.speedPulse - 1);
@@ -1937,7 +1937,7 @@
         els.fxOverlay.style.display = state.boostTime > 0 ? "block" : "none";
         state.prevPlayerZ = state.playerZ;
         state.playerZ -= state.actualSpeed;
-        state.steerVel += (state.steer * 1.15 - state.steerVel) * 0.16;
+        state.steerVel += (state.steer * 0.95 - state.steerVel) * 0.16;
         state.playerX += state.steerVel;
         if (state.playerX < -22) { state.playerX = -22; state.steerVel *= 0.4; }
         if (state.playerX > 22) { state.playerX = 22; state.steerVel *= 0.4; }
@@ -2131,7 +2131,7 @@
       setTimeout(() => {
         if (els.centerMsg.textContent === text) els.centerMsg.style.display = "none";
         els.centerMsg.style.color = "#fff";
-      }, 800);
+      }, 700);
     }
     function triggerQuestion() {
       state.isPaused = true;
@@ -2155,14 +2155,11 @@
         popValue(els.uiScore);
         playCorrectSound();
         els.feedbackMsg.style.color = "var(--success)";
-        els.feedbackMsg.textContent = "太棒了！衝刺前進！";
+        els.feedbackMsg.textContent = "太棒了！繼續前進！";
         setTimeout(() => {
           if (!state.isPlaying) return;
           els.questionModal.classList.add("hidden");
           state.isPaused = false;
-          state.boostTime = 105;
-          state.speedPulse = 105;
-          showCenterMsg("💨 衝刺！", "#fff");
         }, 350);
       } else {
         playWrongSound();
