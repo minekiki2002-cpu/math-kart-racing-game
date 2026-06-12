@@ -89,6 +89,31 @@
       text-align: center;
     }
     .modal h2 { margin: 0 0 15px; color: var(--primary); font-size: 28px; }
+    #setup-modal .modal { width: min(1100px, 96%); padding: 20px 26px 22px; }
+    #setup-modal h2 { font-size: clamp(20px, 2.6vw, 26px); margin-bottom: 8px; }
+    #setup-modal .vice-sub { margin: -4px 0 14px; font-size: 13px; }
+    .setup-grid { display: grid; grid-template-columns: 1fr 1.05fr; gap: 22px; align-items: start; text-align: left; }
+    #setup-modal .cover-art { max-height: none; margin: 0 0 12px; }
+    #setup-modal .gentle-text { font-size: 14.5px; padding: 12px 16px; margin-bottom: 12px; line-height: 1.5; }
+    #setup-modal .section-title { margin: 4px 0 8px; font-size: 17px; }
+    #setup-modal .btn-grid { margin-bottom: 12px; }
+    #setup-modal .opt-btn { padding: 9px 14px; font-size: 15px; }
+    #setup-modal .name-input { height: 48px; font-size: 18px; }
+    #setup-modal .btn-start { margin-top: 12px; padding: 14px; font-size: 22px; }
+    details.settings-tip summary { cursor: pointer; outline: none; }
+    @media (max-width: 880px) {
+      .setup-grid { grid-template-columns: 1fr; }
+      #setup-modal .modal { width: min(680px, 100%); }
+    }
+    #rotate-hint {
+      display: none; position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+      z-index: 120; background: rgba(2,80,140,0.92); color: #fff;
+      padding: 10px 22px; border-radius: 999px; font-weight: 900; font-size: 15px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.25); pointer-events: none; white-space: nowrap;
+    }
+    @media (orientation: portrait) and (max-width: 920px) {
+      body.in-game #rotate-hint { display: block; }
+    }
     .gentle-text {
       margin-bottom: 18px; padding: 15px 20px; border-radius: 16px;
       background: #f0f8ff; color: #444; text-align: left; font-size: 17px;
@@ -185,6 +210,7 @@
 <body>
   <div id="game-canvas"></div>
   <div id="crt-overlay"></div>
+  <div id="rotate-hint">📱 把手機轉成橫向，賽車更過癮！</div>
 
   <div class="hud hidden" id="hud">
     <div class="hud-left">
@@ -208,46 +234,48 @@
     <div class="modal">
       <h2>🌴 快樂卡丁車：整數運算GO GO GO 🌴</h2>
       <div class="vice-sub">— SUNNY SPEEDWAY · 陽光賽道兜風 —</div>
-      <img src="cover-art.jpg" alt="遊戲封面" class="cover-art" onerror="this.style.display='none'">
-      <div class="gentle-text">
-        <strong>玩法：</strong>水藍色車是玩家，出發後會從藍車正後方追蹤。用左右鍵、A/D，或畫面左右按鈕控制方向。撞到 <strong>[?] 題目閘門</strong> 會暫停並作答；金幣加分、時鐘加時、閃電加速。
+      <div class="setup-grid">
+        <div class="setup-left">
+          <img src="cover-art.jpg" alt="遊戲封面" class="cover-art" onerror="this.style.display='none'">
+          <div class="gentle-text">
+            <strong>玩法：</strong>用 <strong>← →</strong> 或 <strong>A/D</strong>（手機按畫面左右按鈕）控制方向。撞到 <strong>[?] 磚塊</strong>作答數學題；🪙 金幣加分、⏳ 時鐘加時、⚡ 閃電衝刺。
+          </div>
+          <details class="gentle-text settings-tip">
+            <summary><strong>⚙️ 設定小提示（點我展開）</strong></summary>
+            <ul class="rule-list">
+              <li><strong>運算可複選：</strong>亮起藍色代表已選，題目會從已選類型隨機出現。</li>
+              <li><strong>全部不能取消：</strong>若只剩一個題型，再點它會保留，避免沒有題目可出。</li>
+              <li><strong>難度：</strong>初級以直式答案為主；中級增加挖空；高級會混合挖空與乘除互逆。</li>
+              <li><strong>時間：</strong>可選 60、120、180 秒；時間到一定跳出成績與排行榜。</li>
+            </ul>
+          </details>
+        </div>
+        <div class="setup-right">
+          <div class="section-title">1. 選擇練習運算</div>
+          <div class="btn-grid" id="op-btns">
+            <button class="opt-btn active" data-val="+">加法</button>
+            <button class="opt-btn active" data-val="-">減法</button>
+            <button class="opt-btn" data-val="*">乘法</button>
+            <button class="opt-btn" data-val="/">除法</button>
+            <button class="opt-btn" data-val="inverse">乘除互逆</button>
+          </div>
+          <div class="section-title">2. 選擇難度</div>
+          <div class="btn-grid" id="diff-btns">
+            <button class="opt-btn active" data-val="easy">初級</button>
+            <button class="opt-btn" data-val="medium">中級</button>
+            <button class="opt-btn" data-val="hard">高級</button>
+          </div>
+          <div class="section-title">3. 兜風時間</div>
+          <div class="btn-grid" id="time-btns">
+            <button class="opt-btn active" data-val="60">60 秒</button>
+            <button class="opt-btn" data-val="120">120 秒</button>
+            <button class="opt-btn" data-val="180">180 秒</button>
+          </div>
+          <input type="text" id="player-name" class="name-input" placeholder="你的車手名稱..." maxlength="12">
+          <button class="btn-start" id="btn-start">出發囉！</button>
+          <a href="./" style="display:block;margin-top:10px;color:#8aa3bd;font-size:14px;font-weight:900;text-decoration:none;text-align:center;">🏠 回首頁</a>
+        </div>
       </div>
-      <div class="gentle-text">
-        <strong>設定怎麼選：</strong>
-        <ul class="rule-list">
-          <li><strong>運算可複選：</strong>亮起藍色代表已選，題目會從已選類型隨機出現。</li>
-          <li><strong>全部不能取消：</strong>若只剩一個題型，再點它會保留，避免沒有題目可出。</li>
-          <li><strong>難度：</strong>初級以直式答案為主；中級增加挖空；高級會混合挖空與乘除互逆。</li>
-          <li><strong>時間：</strong>可選 60、120、180 秒；時間到一定跳出成績與排行榜。</li>
-        </ul>
-      </div>
-
-      <div class="section-title">1. 選擇練習運算</div>
-      <div class="btn-grid" id="op-btns">
-        <button class="opt-btn active" data-val="+">加法</button>
-        <button class="opt-btn active" data-val="-">減法</button>
-        <button class="opt-btn" data-val="*">乘法</button>
-        <button class="opt-btn" data-val="/">除法</button>
-        <button class="opt-btn" data-val="inverse">乘除互逆</button>
-      </div>
-
-      <div class="section-title">2. 選擇難度</div>
-      <div class="btn-grid" id="diff-btns">
-        <button class="opt-btn active" data-val="easy">初級</button>
-        <button class="opt-btn" data-val="medium">中級</button>
-        <button class="opt-btn" data-val="hard">高級</button>
-      </div>
-
-      <div class="section-title">3. 兜風時間</div>
-      <div class="btn-grid" id="time-btns">
-        <button class="opt-btn active" data-val="60">60 秒</button>
-        <button class="opt-btn" data-val="120">120 秒</button>
-        <button class="opt-btn" data-val="180">180 秒</button>
-      </div>
-
-      <input type="text" id="player-name" class="name-input" placeholder="你的車手名稱..." maxlength="12">
-      <button class="btn-start" id="btn-start">出發囉！</button>
-      <a href="./" style="display:block;margin-top:12px;color:#8aa3bd;font-size:14px;font-weight:900;text-decoration:none;">🏠 回首頁</a>
     </div>
   </section>
 
@@ -1800,6 +1828,7 @@
       els.hud.classList.remove("hidden");
       els.controls.classList.remove("hidden");
       els.speedoWrap.classList.remove("hidden");
+      document.body.classList.add("in-game");
       state.score = 0;
       state.timeLeft = state.totalTime;
       state.correctCount = 0;
@@ -2183,6 +2212,7 @@
       els.controls.classList.add("hidden");
       els.speedoWrap.classList.add("hidden");
       els.fxOverlay.style.display = "none";
+      document.body.classList.remove("in-game");
       playFinishSound();
       els.finalScore.textContent = state.score;
       els.finalAttempted.textContent = state.attemptedCount;
